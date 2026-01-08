@@ -1,72 +1,87 @@
 import express from "express";
-import db from "../db/connection.js";
 import { ObjectId } from "mongodb";
+import { getDb } from "../db/connection.js";
 
 const router = express.Router();
 
 router.get("/", async (req, res) => {
-    let collection = await db.collection("records");
-    let results = await collection.find({}).toArray();
-    res.send(results).status(200);
+  const db = getDb();
+  const collection = db.collection("records");
+  const results = await collection.find({}).toArray();
+  return res.status(200).send(results);
 });
 
 router.get("/:id", async (req, res) => {
-    let collection = await db.collection("records");
-    let query = { _id: new ObjectId(req.params.id) };
-    let result = await collection.findOne(query);
+  const db = getDb();
+  const collection = db.collection("records");
 
-    if (!result) res.send("Not found").status(404);
-    else res.send(result).status(200);
+  try {
+    const query = { _id: new ObjectId(req.params.id) };
+    const result = await collection.findOne(query);
+    if (!result) return res.status(404).send("Not found");
+    return res.status(200).send(result);
+  } catch {
+    return res.status(400).send("Invalid id");
+  }
 });
 
 router.post("/", async (req, res) => {
-    try {
-        let newDocument = {
-            name: req.body.name,
-            position: req.body.position,
-            level: req.body.level,
-        };
-        let collection = await db.collection("records");
-        let result = await collection.insertOne(newDocument);
-        res.send(result).status(204);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Error adding record");
-    }
+  try {
+    const db = getDb();
+    const collection = db.collection("records");
+
+    const newDocument = {
+      name: req.body.name,
+      position: req.body.position,
+      level: req.body.level,
+      createdAt: new Date(),
+    };
+
+    const result = await collection.insertOne(newDocument);
+    return res.status(201).json({ _id: result.insertedId, ...newDocument });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send("Error adding record");
+  }
 });
 
 router.patch("/:id", async (req, res) => {
-    try {
-        const query = { _id: new ObjectId(req.params.id) };
-        const updates = {
-            $set: {
-                name: req.body.name,
-                position: req.body.name,
-                level: req.body.level,
-            },
-        };
+  try {
+    const db = getDb();
+    const collection = db.collection("records");
+    const query = { _id: new ObjectId(req.params.id) };
 
-        let collection = await db.collection("records");
-        let result = await collection.updateOne(query, updates);
-        res.send(result).status(200);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Error updating record");
-    }
+    const updates = {
+      $set: {
+        name: req.body.name,
+        position: req.body.position, // fixed
+        level: req.body.level,
+        updatedAt: new Date(),
+      },
+    };
+
+    const result = await collection.updateOne(query, updates);
+    if (result.matchedCount === 0) return res.status(404).send("Not found");
+    return res.status(200).send(result);
+  } catch (err) {
+    console.error(err);
+    return res.status(400).send("Invalid request");
+  }
 });
 
 router.delete("/:id", async (req, res) => {
-    try {
-        const query = {_id: new ObjectId(req.params.id) };
+  try {
+    const db = getDb();
+    const collection = db.collection("records");
+    const query = { _id: new ObjectId(req.params.id) };
 
-        const collection = db.collection("records");
-        let result = await collection.deleteOne(query);
-
-        res.send(result).status(200);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Error deleting record");
-    }
+    const result = await collection.deleteOne(query);
+    if (result.deletedCount === 0) return res.status(404).send("Not found");
+    return res.status(200).send(result);
+  } catch (err) {
+    console.error(err);
+    return res.status(400).send("Invalid id");
+  }
 });
 
 export default router;
