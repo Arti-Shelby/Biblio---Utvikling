@@ -21,7 +21,7 @@ export async function connectToMongo() {
   await client.connect();
   await client.db("admin").command({ ping: 1 });
 
-  const dbName = process.env.DB_NAME || "biblio";
+  const dbName = process.env.DB_NAME || "Biblio";
   _db = client.db(dbName);
 
   console.log(`Connected to MongoDB (db: ${dbName})`);
